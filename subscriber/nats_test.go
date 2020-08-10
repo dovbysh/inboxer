@@ -9,14 +9,16 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/stan.go"
 	"github.com/stretchr/testify/assert"
+	"runtime"
 	"sync"
 	"testing"
 )
 
 const (
-	Subscr1 = "subscr1"
-	Subscr2 = "subscr2"
-	Subscr3 = "subscr3"
+	Subscr1    = "subscr1"
+	Subscr2    = "subscr2"
+	Subscr3    = "subscr3"
+	InboxTable = "_nats_inbox"
 )
 
 func TestNewNatsSubscriber(t *testing.T) {
@@ -24,7 +26,7 @@ func TestNewNatsSubscriber(t *testing.T) {
 	defer ts.Close()
 	ts.InitInbox()
 
-	n := NewNatsSubscriber("_nats_inbox", ts.sc, ts.db)
+	n := NewNatsSubscriber(InboxTable, ts.sc, ts.db)
 	defer n.Close()
 	err := n.Subscribe(Subscr1, func(ch <-chan uint64) {
 		var c bool
@@ -36,15 +38,31 @@ func TestNewNatsSubscriber(t *testing.T) {
 			}
 		}
 		assert.False(t, c)
-	}, 2, 8)
+	}, 2, 8, nil)
 	assert.NoError(t, err)
-	err = n.Subscribe(Subscr1, func(ch <-chan uint64) {}, 0, 0)
+	err = n.Subscribe(Subscr1, func(ch <-chan uint64) {}, 0, 0, nil)
 	assert.Error(t, err)
 	for i := 0; i < 20; i++ {
 		ts.sc.Publish(Subscr1, []byte(fmt.Sprintf("test %d", i)))
 	}
 
 	n.Close()
+
+	n2 := NewNatsSubscriber("_table_does_not_exist", ts.sc, ts.db)
+	defer n2.Close()
+	var sc2fired bool
+	err = n2.Subscribe(Subscr2, func(ch <-chan uint64) {}, 0, 0, func(err error) {
+		assert.Error(t, err)
+		t.Log(err)
+		sc2fired = true
+	})
+	assert.NoError(t, err)
+	for i := 0; i < 20; i++ {
+		ts.sc.Publish(Subscr2, []byte(fmt.Sprintf("test %d", i)))
+	}
+	runtime.Gosched()
+	assert.True(t, sc2fired)
+
 }
 
 type TStruct struct {
@@ -104,5 +122,5 @@ func (ts *TStruct) Close() {
 }
 
 func (ts *TStruct) InitInbox() {
-	ts.db.Model((*ievent.Inbox)(nil)).Table("_nats_inbox").CreateTable(nil)
+	ts.db.Model((*ievent.Inbox)(nil)).Table(InboxTable).CreateTable(nil)
 }
