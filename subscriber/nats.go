@@ -36,7 +36,7 @@ type Subscriber func(ch <-chan uint64)
 
 var ErrOnlyOneSubscriberAllowed = fmt.Errorf("only one subscriber allowed")
 
-func (n *NatsSubscriber) Subscribe(subject string, f Subscriber, threads uint64, chanLength uint64) error {
+func (n *NatsSubscriber) Subscribe(subject string, f Subscriber, threads uint64, chanLength uint64, ef func(error)) error {
 	n.subMutex.Lock()
 	defer n.subMutex.Unlock()
 	_, exists := n.channelMap[subject]
@@ -87,6 +87,9 @@ func (n *NatsSubscriber) Subscribe(subject string, f Subscriber, threads uint64,
 			pgErr, ok := err.(pg.Error)
 			if ok && pgErr.IntegrityViolation() {
 				msg.Ack()
+			}
+			if ef != nil {
+				ef(err)
 			}
 		}
 	},
