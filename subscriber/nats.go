@@ -12,7 +12,7 @@ import (
 type NatsSubscriber struct {
 	channelMap      map[string]chan uint64
 	channelMutexMap map[string]*sync.Mutex
-	subscrMap       map[string]stan.Subscription
+	subscriptionMap map[string]stan.Subscription
 	subMutex        sync.Mutex
 	tableName       string
 	sc              stan.Conn
@@ -26,7 +26,7 @@ func NewNatsSubscriber(tableName string, sc stan.Conn, db *pg.DB) *NatsSubscribe
 		db:              db,
 		channelMap:      make(map[string]chan uint64),
 		channelMutexMap: make(map[string]*sync.Mutex),
-		subscrMap:       make(map[string]stan.Subscription),
+		subscriptionMap: make(map[string]stan.Subscription),
 	}
 
 	return &s
@@ -72,7 +72,7 @@ func (n *NatsSubscriber) Subscribe(subject string, f Subscriber, threads uint64,
 			return nil
 		})
 		if err == nil {
-			msg.Ack()
+			errorFunc(msg.Ack(), ef)
 			m, ex := n.channelMutexMap[msg.Subject]
 			if ex {
 				m.Lock()
@@ -86,11 +86,9 @@ func (n *NatsSubscriber) Subscribe(subject string, f Subscriber, threads uint64,
 		if err != nil {
 			pgErr, ok := err.(pg.Error)
 			if ok && pgErr.IntegrityViolation() {
-				msg.Ack()
+				errorFunc(msg.Ack(), ef)
 			}
-			if ef != nil {
-				ef(err)
-			}
+			errorFunc(err, ef)
 		}
 	},
 		stan.SetManualAckMode(),
@@ -100,29 +98,79 @@ func (n *NatsSubscriber) Subscribe(subject string, f Subscriber, threads uint64,
 	if err != nil {
 		return err
 	}
-	n.subscrMap[subject] = subscription
+	n.subscriptionMap[subject] = subscription
 
 	return nil
 }
+func (n *NatsSubscriber) ReSendSubscriptionEvents() error {
+	if len(n.subscriptionMap) == 0 {
+		return fmt.Errorf("no subscribers")
+	}
+	n.subMutex.Lock()
+	defer n.subMutex.Unlock()
 
+	subjects := make([]string, 0, len(n.subscriptionMap))
+	for subject := range n.subscriptionMap {
+		subjects = append(subjects, subject)
+	}
+	var evs []ievent.Inbox
+	var lastId uint64
+	locked := make(map[string]bool)
+	for {
+		if err := n.db.
+			Model(&evs).
+			Table(n.tableName).
+			Column("id", "subject").
+			Where("proceed = false").
+			Where("id > ?", lastId).
+			WhereIn("subject in (?)", subjects).
+			Order("id", "sequence", "created_at", "timestamp").
+			Limit(1000).
+			Select(); err != nil {
+			return err
+		}
+		if len(evs) == 0 {
+			break
+		}
+		for _, ev := range evs {
+			lastId = ev.ID
+			if !locked[ev.Subject] {
+				s := ev.Subject
+				n.channelMutexMap[s].Lock()
+				defer n.channelMutexMap[s].Unlock()
+				locked[ev.Subject] = true
+			}
+			n.channelMap[ev.Subject] <- ev.ID
+		}
+	}
+
+	return nil
+}
 func (n *NatsSubscriber) Close() error {
 	n.subMutex.Lock()
 	defer n.subMutex.Unlock()
-	for subject, subscription := range n.subscrMap {
+	for subject, subscription := range n.subscriptionMap {
 		err := subscription.Close()
 		if err != nil {
 			return fmt.Errorf("%w subject: %s", err, subject)
 		}
-		delete(n.subscrMap, subject)
+		delete(n.subscriptionMap, subject)
 	}
 
 	for subject, ch := range n.channelMap {
 		m, _ := n.channelMutexMap[subject]
 		m.Lock()
-		defer m.Unlock()
 		delete(n.channelMap, subject)
 		delete(n.channelMutexMap, subject)
 		close(ch)
+
+		m.Unlock()
 	}
 	return nil
+}
+
+func errorFunc(err error, ef func(error)) {
+	if err != nil && ef != nil {
+		ef(err)
+	}
 }
