@@ -2,17 +2,18 @@ package subscriber
 
 import (
 	"fmt"
-	"github.com/dovbysh/go-utils/testing/tlog"
-	"github.com/dovbysh/inboxer/ievent"
-	"github.com/dovbysh/tests_common/v3"
-	"github.com/go-pg/pg/v9"
-	"github.com/nats-io/nats.go"
-	"github.com/nats-io/stan.go"
-	"github.com/stretchr/testify/assert"
 	"runtime"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/dovbysh/go-utils/testing/tlog"
+	"github.com/dovbysh/inboxer/ievent"
+	"github.com/dovbysh/tests_common"
+	"github.com/go-pg/pg/v9"
+	"github.com/nats-io/nats.go"
+	"github.com/nats-io/stan.go"
+	"github.com/stretchr/testify/assert"
 )
 
 const (
