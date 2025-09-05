@@ -6,9 +6,9 @@ require (
 	github.com/dovbysh/go-utils v0.1.2-0.20240114170329-13f96d355140
 	github.com/dovbysh/tests_common v0.0.0-20240114163124-fc97ad1ce037
 	github.com/go-pg/pg/v9 v9.2.1
-	github.com/nats-io/nats.go v1.32.0
+	github.com/nats-io/nats.go v1.45.0
 	github.com/nats-io/stan.go v0.10.4
-	github.com/stretchr/testify v1.8.4
+	github.com/stretchr/testify v1.11.1
 )
 
 require (
@@ -25,8 +25,8 @@ require (
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
-	github.com/klauspost/compress v1.17.4 // indirect
-	github.com/nats-io/nkeys v0.4.7 // indirect
+	github.com/klauspost/compress v1.18.0 // indirect
+	github.com/nats-io/nkeys v0.4.11 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.0-rc5 // indirect
@@ -41,13 +41,13 @@ require (
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
 	github.com/vmihailenco/tagparser v0.1.2 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
-	golang.org/x/crypto v0.40.0 // indirect
+	golang.org/x/crypto v0.41.0 // indirect
 	golang.org/x/mod v0.14.0 // indirect
-	golang.org/x/net v0.41.0 // indirect
-	golang.org/x/sys v0.34.0 // indirect
+	golang.org/x/net v0.43.0 // indirect
+	golang.org/x/sys v0.35.0 // indirect
 	golang.org/x/tools v0.17.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
-	google.golang.org/protobuf v1.36.6 // indirect
+	google.golang.org/protobuf v1.36.8 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	mellium.im/sasl v0.3.2 // indirect
 	moul.io/http2curl v1.0.0 // indirect
